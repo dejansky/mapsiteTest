@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
     <style>
         #mapid {
             height: 100vh;
@@ -21,78 +22,47 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Placeholder for your actual data.
-        var populationData = {
-            'RS-00': 1376347, // Belgrade (City)
-            'RS-01': 500000, // North Bačka District
-            'RS-02': 350000, // Central Banat District
-            'RS-03': 400000, // North Banat District
-            'RS-04': 600000, // South Banat District
-            'RS-05': 350000, // West Bačka District
-            'RS-06': 800000, // South Bačka District
-            'RS-07': 300000, // Srem District
-            'RS-08': 550000, // Mačva District
-            'RS-09': 450000, // Kolubara District
-            'RS-10': 300000, // Podunavlje District
-            'RS-11': 250000, // Braničevo District
-            'RS-12': 350000, // Šumadija District
-            'RS-13': 300000, // Pomoravlje District
-            'RS-14': 250000, // Bor District
-            'RS-15': 200000, // Zaječar District
-            'RS-16': 300000, // Zlatibor District
-            'RS-17': 400000, // Moravica District
-            'RS-18': 350000, // Raška District
-            'RS-19': 300000, // Rascian District
-            'RS-20': 600000, // Nišava District
-            'RS-21': 300000, // Toplica District
-            'RS-22': 200000, // Pirot District
-            'RS-23': 350000, // Jablanica District
-            'RS-24': 400000, // Pčinja District
-            'RS-25': 200000, // Kosovo-Pomoravlje District
-            'RS-26': 300000, // Peć District
-            'RS-27': 350000, // Prizren District
-            'RS-28': 300000, // Kosovska Mitrovica District
-            'RS-29': 400000, // Kosovo District
-            'RS-KM': 1800000, // Autonomous Province of Kosovo and Metohija
-            'RS-VO': 2000000 // Autonomous Province of Vojvodina
-        };
+        // Load population data
+        d3.json('/population', function(error, populationData) {
+            if (error) throw error;
 
-        function getColor(d) {
-            return d > 1000000 ? '#800026' :
-                   d > 500000  ? '#BD0026' :
-                   d > 200000  ? '#E31A1C' :
-                   d > 100000  ? '#FC4E2A' :
-                   d > 50000   ? '#FD8D3C' :
-                   d > 20000   ? '#FEB24C' :
-                   d > 10000   ? '#FED976' :
-                                  '#FFEDA0';
-        }
+            var colorScale = d3.scaleQuantize()
+                .domain([d3.min(populationData, d => d.population), d3.max(populationData, d => d.population)])
+                .range(d3.schemeBlues[9]);
 
-        function style(feature) {
-            return {
-                fillColor: getColor(populationData[feature.properties.ID_1]),
-                weight: 2,
-                opacity: 1,
-                color: 'white',
-                dashArray: '3',
-                fillOpacity: 0.7
-            };
-        }
+            // Load geojson data
+            d3.json('serbia', function(error, geojson) {
+                if (error) throw error;
 
-        // Fetch the GeoJSON data
-        fetch('serbia.geojson')
-        .then(response => response.json())
-        .then(data => {
-            L.geoJson(data, {
-                style: style,
-                onEachFeature: function (feature, layer) {
-                    var population = populationData[feature.properties.ID_1];
-                    layer.bindPopup(
-                        'Region: ' + feature.properties.NAME_1 +
-                        '<br>Population: ' + population
-                    );
-                }
-            }).addTo(map);
+                // For each feature in the geojson, set the style based on population
+                geojson.features.forEach(function(feature) {
+                    var pop = populationData.find(d => d.id === feature.properties.ID_1);
+                    if (pop) {
+                        feature.properties.fillColor = colorScale(pop.population);
+                    }
+                });
+
+                // Add data to the map
+                L.geoJson(geojson, {
+                    style: function(feature) {
+                        return {
+                            fillColor: feature.properties.fillColor,
+                            weight: 2,
+                            opacity: 1,
+                            color: 'white',
+                            dashArray: '3',
+                            fillOpacity: 0.7
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        var pop = populationData.find(d => d.id === feature.properties.ID_1);
+                        layer.bindPopup(
+                            'Region: ' + feature.properties.NAME_1 +
+                            '<br>Population: ' + (pop ? pop.population : 'No data')
+                        );
+                    }
+                }).addTo(map);
+            });
         });
     </script>
 </body>

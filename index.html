@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Leaflet Map</title>
+    <title>Population Map</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -15,11 +15,33 @@
 <body>
     <div id="mapid"></div>
     <script>
-        var map = L.map('mapid').setView([51.505, -0.09], 13);
+        var map = L.map('mapid').setView([44.0165, 21.0059], 7);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        L.marker([51.5, -0.09]).addTo(map);
+
+        // This is a placeholder for your actual data.
+        var populationData = {
+            // regionId: population
+            'RS-00': 100000, // Belgrade
+            // Other regions...
+        };
+
+        // Fetch the GeoJSON data
+        fetch('serbia.geojson')
+        .then(response => response.json())
+        .then(data => {
+            L.geoJson(data, {
+                onEachFeature: function (feature, layer) {
+                    var population = populationData[feature.properties.ID_1];
+                    layer.bindPopup(
+                        'Region: ' + feature.properties.NAME_1 +
+                        '<br>Population: ' + population
+                    );
+                }
+            }).addTo(map);
+        });
     </script>
 </body>
 </html>
